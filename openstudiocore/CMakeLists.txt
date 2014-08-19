@@ -151,6 +151,7 @@ set(project_directories
   energyplus
   radiance
   gbxml
+  bimserver
   contam
   isomodel
   osversion
@@ -859,6 +860,7 @@ set(all_lib_targets
   openstudio_analysis
   openstudio_radiance
   openstudio_gbxml
+  openstudio_bimserver
   openstudio_isomodel
   openstudio_lib
   openstudio_sdd
