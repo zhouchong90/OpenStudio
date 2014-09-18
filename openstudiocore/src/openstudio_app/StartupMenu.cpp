@@ -46,6 +46,11 @@ StartupMenu::StartupMenu(QWidget *parent) :
   action = new QAction(tr("SDD"), this);
   importMenu->addAction(action);
   connect(action, &QAction::triggered, this, &StartupMenu::importSDDClicked);
+  //Add new option -- import IFC file
+  //Yu Fu Spet 18
+  action = new QAction(tr("IFC"), this);
+  importMenu->addAction(action);
+  connect(action, &QAction::triggered, this, &StartupMenu::importIFCClicked);
 
   connect(loadFileAction, &QAction::triggered, this, &StartupMenu::loadFileClicked);
   connect(newAction, &QAction::triggered, this, &StartupMenu::newClicked);
