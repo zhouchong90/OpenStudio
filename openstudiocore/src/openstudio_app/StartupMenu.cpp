@@ -50,7 +50,7 @@ StartupMenu::StartupMenu(QWidget *parent) :
   //Yu Fu Spet 18
   action = new QAction(tr("IFC"), this);
   importMenu->addAction(action);
-  connect(action, &QAction::triggered, this, &StartupMenu::importIFCClicked);
+  connect(action, &QAction::triggered, this, &StartupMenu::importgbXMLClicked);
 
   connect(loadFileAction, &QAction::triggered, this, &StartupMenu::loadFileClicked);
   connect(newAction, &QAction::triggered, this, &StartupMenu::newClicked);

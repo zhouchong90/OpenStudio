@@ -45,12 +45,12 @@ class StartupMenu : public QMenuBar
   void importgbXMLClicked();
 
   void importSDDClicked();
-  
-  void importIFCClicked();
+
+  //void importIFCClicked();
 
   void loadFileClicked();
 
-  void saveAsFileClicked(); 
+  void saveAsFileClicked();
 
   void saveFileClicked();
 
