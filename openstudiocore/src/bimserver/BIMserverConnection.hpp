@@ -17,8 +17,8 @@
 *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 **********************************************************************/
 
-#ifndef BIMSERVER_REVERSETRANSLATOR_HPP
-#define BIMSERVER_REVERSETRANSLATOR_HPP
+#ifndef BIMSERVER_BIMSERVERCONNECTION_HPP
+#define BIMSERVER_BIMSERVERCONNECTION_HPP
 
 #include "BIMserverAPI.hpp"
 
@@ -26,17 +26,6 @@
 #include "../utilities/core/Optional.hpp"
 #include "../utilities/core/Logger.hpp"
 #include "../utilities/core/StringStreamLogSink.hpp"
-
-#include <QUrl>
-#include <QtWidgets/QMessageBox>
-#include <QtNetwork/QNetworkAccessManager>
-#include <QtNetwork/QNetworkRequest>
-#include <QtNetwork/QNetworkReply>
-#include <QJsonObject>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonValue>
-#include <QByteArray>
 
 namespace openstudio {
 
@@ -74,45 +63,7 @@ namespace bimserver {
     REGISTER_LOGGER("openstudio.bimserver.ReverseTranslator");
   };
 
-  /// This provides utilities to connect to BIMserver
-  class BIMserverConnection : public QObject
-  {
-    Q_OBJECT
-
-  public:
-
-    /// Default constructor
-    BIMserverConnection(QObject * parent, const char * bimserverUrl);
-
-    /// Virtual destructor
-    ~BIMserverConnection();
-
-    /// Load a model from BIMserver given the login credentials and BIMserver address
-    void loadModel();
-
-  private:
-
-    void loginRequest(QString username, QString password) const;
-    std::string getName(QJsonValue value);
-    void extractSurface(const QJsonObject &osmJsonSurface, openstudio::model::Model &model);
-    void extractSpace(const QJsonObject &osmJsonSpace, openstudio::model::Model &model);
-    void extractSubSurface(const QJsonObject &osmJsonSubSurface, openstudio::model::Model & model);
-    boost::optional<std::vector<openstudio::Point3d>> extractPoints(const QJsonObject &osmJsonElement);
-    
-    QNetworkAccessManager* m_networkManager;
-    QNetworkReply* m_networkReply;
-    QUrl m_bimserverURL;
-    QString m_token;
-
-    void processLoginRequest(QNetworkReply *rep);
-    void processDownloadRequest(QNetworkReply *rep);
-    void processGetDownloadDataRequest(QNetworkReply *rep);
-
-    
-
-  };
-
 } // bimserver
 } // openstudio
 
-#endif // BIMSERVER_REVERSETRANSLATOR_HPP
+#endif // BIMSERVER_BIMSERVERCONNECTION_HPP

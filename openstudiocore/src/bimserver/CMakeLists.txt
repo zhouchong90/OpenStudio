@@ -5,6 +5,8 @@ set(${target_name}_src
   mainpage.hpp
   ReverseTranslator.hpp
   ReverseTranslator.cpp
+  BIMserverConnection.hpp
+  BIMserverConnection.cpp
 )
 
 set(${target_name}_test_src
