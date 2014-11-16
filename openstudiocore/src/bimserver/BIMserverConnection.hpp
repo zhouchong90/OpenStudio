@@ -57,8 +57,34 @@ namespace bimserver {
     /// login with username and password
     void login(QString username, QString password);
     
-    ///download the osm model
+    /// download the osm model
     void download(int projectID);
+  
+  public slots:
+
+    /// log in to BIMserver
+    void processLoginRequest(QNetworkReply *rep);
+
+    /// get all projects
+    void processGetAllProjectsRequest(QNetworkReply *rep);
+
+    /// get serializer id
+    void processGetSerializerRequest(QNetworkReply *rep);
+
+    /// get download action id
+    void processDownloadRequest(QNetworkReply *rep);
+
+    /// get download data
+    void processGetDownloadDataRequest(QNetworkReply *rep);
+
+  signals:
+    /// send the retrieved osmString to GUI
+    void osmStringRetrieved(QString osmString);
+
+    ///send the list of all projects to GUI
+    void listAllProjects(QStringList projectList);
+
+  
 
   private:
 
@@ -77,23 +103,6 @@ namespace bimserver {
     QString m_serializerOid;
     QString m_roid;
     QString m_actionId;
-
-  private slots:
-  
-  void processLoginRequest(QNetworkReply *rep);
-  void processGetAllProjectsRequest(QNetworkReply *rep);
-  void processGetSerializerRequest(QNetworkReply *rep);
-  void processDownloadRequest(QNetworkReply *rep);
-  void processGetDownloadDataRequest(QNetworkReply *rep);
-  
-
-signals:
-    /// send the retrieved osmString to GUI
-    void osmStringRetrieved(QString osmString);
-    
-    ///send the list of all projects to GUI
-    void listAllProjects(QStringList projectList);
-    
     
   };
 

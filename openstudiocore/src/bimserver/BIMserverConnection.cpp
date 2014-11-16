@@ -133,9 +133,9 @@ namespace bimserver {
     QStringList projectList;
 
     foreach(const QJsonValue & value, result) {
-      QJsonObject project = value.toObject();
-      int lastRevisionId = project["lastRevisionId"].toInt();
-      QString projectName = project["name"].toString();
+      QJsonObject ifcProject = value.toObject();
+      int lastRevisionId = ifcProject["lastRevisionId"].toInt();
+      QString projectName = ifcProject["name"].toString();
       
       QString project = QString::number(lastRevisionId).append(";").append(projectName);
       
