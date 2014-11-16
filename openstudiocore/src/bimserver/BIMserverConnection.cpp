@@ -17,92 +17,276 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  **********************************************************************/
 
-#include "ReverseTranslator.hpp"
+#include "BIMserverConnection.hpp"
 
-#include "../model/Model.hpp"
-#include "../model/ModelObject.hpp"
-#include "../model/ModelObject_Impl.hpp"
-#include "../model/Facility.hpp"
-#include "../model/Facility_Impl.hpp"
-#include "../model/Building.hpp"
-#include "../model/Building_Impl.hpp"
-#include "../model/BuildingStory.hpp"
-#include "../model/BuildingStory_Impl.hpp"
-#include "../model/ThermalZone.hpp"
-#include "../model/ThermalZone_Impl.hpp"
-#include "../model/Space.hpp"
-#include "../model/Space_Impl.hpp"
-#include "../model/Surface.hpp"
-#include "../model/Surface_Impl.hpp"
-#include "../model/SubSurface.hpp"
-#include "../model/SubSurface_Impl.hpp"
-#include "../model/ShadingSurface.hpp"
-#include "../model/ShadingSurface_Impl.hpp"
-#include "../model/ShadingSurfaceGroup.hpp"
-#include "../model/ShadingSurfaceGroup_Impl.hpp"
+#include <QString>
+#include <QUrl>
+#include <QtNetwork/QNetworkAccessManager>
+#include <QtNetwork/QNetworkRequest>
+#include <QtNetwork/QNetworkReply>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonValue>
+#include <QByteArray>
 
-#include "../utilities/core/Assert.hpp"
-#include "../utilities/units/UnitFactory.hpp"
-#include "../utilities/units/QuantityConverter.hpp"
-#include "../utilities/plot/ProgressBar.hpp"
+#include <iostream>
 
-#include <QThread>
 
 namespace openstudio {
 namespace bimserver {
 
-  ReverseTranslator::ReverseTranslator()
-  {
-    m_logSink.setLogLevel(Warn);
-    m_logSink.setChannelRegex(boost::regex("openstudio\\.bimserver\\.ReverseTranslator"));
-    m_logSink.setThreadId(QThread::currentThread());
+  BIMserverConnection::BIMserverConnection(QObject * parent, const char * bimserverUrl) :
+    QObject(parent),
+    m_networkManager(new QNetworkAccessManager) {
+    m_bimserverURL = QString(bimserverUrl);
   }
 
-  ReverseTranslator::~ReverseTranslator()
-  {
+  BIMserverConnection::~BIMserverConnection() {
+    delete m_networkManager;
   }
 
-  boost::optional<openstudio::model::Model> ReverseTranslator::loadModel(const openstudio::path& path, ProgressBar* progressBar)
-  {
-    m_progressBar = progressBar;
-
-    m_logSink.setThreadId(QThread::currentThread());
-
-    m_logSink.resetStringStream();
-
-    boost::optional<openstudio::model::Model> result;
-
-    // Do work
-
-    return result;
+  void BIMserverConnection::login(QString username, QString password) {
+    //std::cout << "Hello World";
+    m_username = username;
+    m_password = password;
+    sendLoginRequest();
   }
 
+  void BIMserverConnection::sendLoginRequest() {
+    //construct login json
+    QJsonObject parameters;
+    parameters["username"] = QJsonValue(m_username);
+    parameters["password"] = QJsonValue(m_password);
+    QJsonObject request;
+    request["interface"] = QJsonValue("Bimsie1AuthInterface");
+    request["method"] = QJsonValue("login");
+    request["parameters"] = parameters;
+    QJsonObject jsonRequest;
+    jsonRequest["token"] = "1";
+    jsonRequest["request"] = request;
 
-  std::vector<LogMessage> ReverseTranslator::warnings() const
-  {
-    std::vector<LogMessage> result;
+    QJsonDocument doc;
+    doc.setObject(jsonRequest);
 
-    for (LogMessage logMessage : m_logSink.logMessages()){
-      if (logMessage.logLevel() == Warn){
-        result.push_back(logMessage);
-      }
+    QByteArray jsonByteArray = doc.toJson();
+
+    //setup network connection
+    QNetworkRequest qNetworkRequest(m_bimserverURL);
+    qNetworkRequest.setRawHeader("Content-Type", "application/json");
+
+    // disconnect all signals from m_networkManager to this
+    disconnect(m_networkManager, nullptr, this, nullptr);
+    connect(m_networkManager, &QNetworkAccessManager::finished, this, &BIMserverConnection::processLoginRequest);
+    m_networkManager->post(qNetworkRequest, jsonByteArray);
+  }
+
+  void BIMserverConnection::processLoginRequest(QNetworkReply *rep) {
+    //extract token from login Request
+    QByteArray responseArray = rep->readAll();
+
+    QJsonDocument responseDoc = QJsonDocument::fromJson(responseArray);
+    QJsonObject responseObj = responseDoc.object();
+    QJsonObject response = responseObj["response"].toObject();
+    m_token = response["result"].toString();
+
+    //TODO Chong add find serializer and find project method
+    sendGetAllProjectsRequest();
+  }
+
+  void BIMserverConnection::sendGetAllProjectsRequest() {
+    QJsonObject parameters;
+    parameters["onlyTopLevel"] = QJsonValue(true);
+    parameters["onlyActive"] = QJsonValue(false);
+    QJsonObject request;
+    request["interface"] = QJsonValue("Bimsie1ServiceInterface");
+    request["method"] = QJsonValue("getAllProjects");
+    request["parameters"] = parameters;
+    QJsonObject jsonRequest;
+    jsonRequest["token"] = QJsonValue(m_token);
+    jsonRequest["request"] = request;
+
+    QJsonDocument doc;
+    doc.setObject(jsonRequest);
+
+    QByteArray downloadJson = doc.toJson();
+
+    //setup network connection
+    QNetworkRequest qNetworkRequest(m_bimserverURL);
+    qNetworkRequest.setRawHeader("Content-Type", "application/json");
+
+    // disconnect all signals from m_networkManager to this
+    disconnect(m_networkManager, nullptr, this, nullptr);
+    connect(m_networkManager, &QNetworkAccessManager::finished, this, &BIMserverConnection::processGetAllProjectsRequest);
+    m_networkManager->post(qNetworkRequest, downloadJson);
+  }
+
+  void BIMserverConnection::processGetAllProjectsRequest(QNetworkReply *rep) {
+    QByteArray responseArray = rep->readAll();
+
+    QJsonDocument responseDoc = QJsonDocument::fromJson(responseArray);
+    QJsonObject responseObj = responseDoc.object();
+
+    QJsonObject response = responseObj["response"].toObject();
+    QJsonArray result = response["result"].toArray();
+
+    QStringList projectList;
+
+    foreach(const QJsonValue & value, result) {
+      QJsonObject project = value.toObject();
+      int lastRevisionId = project["lastRevisionId"].toInt();
+      QString projectName = project["name"].toString();
+      
+      QString project = QString::number(lastRevisionId).append(";").append(projectName);
+      
+      projectList.append(project);
     }
 
-    return result;
+    emit listAllProjects(projectList);
   }
 
-  std::vector<LogMessage> ReverseTranslator::errors() const
-  {
-    std::vector<LogMessage> result;
-
-    for (LogMessage logMessage : m_logSink.logMessages()){
-      if (logMessage.logLevel() > Warn){
-        result.push_back(logMessage);
-      }
-    }
-
-    return result;
+  void BIMserverConnection::download(int projectID) {
+    m_roid = QString::number(projectID);
+    sendGetSerializerRequest();
   }
+
+  void BIMserverConnection::sendGetSerializerRequest() {
+    QJsonObject parameters;
+    parameters["serializerName"] = QJsonValue("OSMSerializer");
+    QJsonObject request;
+    request["interface"] = QJsonValue("Bimsie1ServiceInterface");
+    request["method"] = QJsonValue("getSerializerByName");
+    request["parameters"] = parameters;
+    QJsonObject jsonRequest;
+    jsonRequest["token"] = QJsonValue(m_token);
+    jsonRequest["request"] = request;
+
+    QJsonDocument doc;
+    doc.setObject(jsonRequest);
+
+    QByteArray jsonByteArray = doc.toJson();
+
+    //setup network connection
+    QNetworkRequest qNetworkRequest(m_bimserverURL);
+    qNetworkRequest.setRawHeader("Content-Type", "application/json");
+
+    // disconnect all signals from m_networkManager to this
+    disconnect(m_networkManager, nullptr, this, nullptr);
+    connect(m_networkManager, &QNetworkAccessManager::finished, this, &BIMserverConnection::processGetSerializerRequest);
+    m_networkManager->post(qNetworkRequest, jsonByteArray);
+  }
+
+  void BIMserverConnection::processGetSerializerRequest(QNetworkReply *rep) {
+    QByteArray responseArray = rep->readAll();
+
+    QJsonDocument responseDoc = QJsonDocument::fromJson(responseArray);
+    QJsonObject downloadResponse = responseDoc.object();
+    QJsonObject response = downloadResponse["response"].toObject();
+
+    QJsonObject result = response["result"].toObject();
+    int serializerID = result["oid"].toInt();
+    m_serializerOid = QString::number(serializerID);
+
+    sendDownloadRequest();
+  }
+
+  void BIMserverConnection::sendDownloadRequest() {
+    QJsonObject parameters;
+    parameters["roid"] = QJsonValue(m_roid);
+    parameters["serializerOid"] = QJsonValue(m_serializerOid);
+    parameters["showOwn"] = QJsonValue(false);
+    parameters["sync"] = QJsonValue(false);
+    QJsonObject request;
+    request["interface"] = QJsonValue("Bimsie1ServiceInterface");
+    request["method"] = QJsonValue("download");
+    request["parameters"] = parameters;
+    QJsonObject jsonRequest;
+    jsonRequest["token"] = QJsonValue(m_token);
+    jsonRequest["request"] = request;
+
+    QJsonDocument doc;
+    doc.setObject(jsonRequest);
+
+    QByteArray jsonByteArray = doc.toJson();
+
+    //setup network connection
+    QNetworkRequest qNetworkRequest(m_bimserverURL);
+    qNetworkRequest.setRawHeader("Content-Type", "application/json");
+
+    // disconnect all signals from m_networkManager to this
+    disconnect(m_networkManager, nullptr, this, nullptr);
+    connect(m_networkManager, &QNetworkAccessManager::finished, this, &BIMserverConnection::processDownloadRequest);
+    m_networkManager->post(qNetworkRequest, jsonByteArray);
+  }
+
+  void BIMserverConnection::processDownloadRequest(QNetworkReply *rep) {
+    //extract token from login Request
+    QByteArray responseArray = rep->readAll();
+
+    QJsonDocument responseDoc = QJsonDocument::fromJson(responseArray);
+    QJsonObject downloadResponse = responseDoc.object();
+    QJsonObject response = downloadResponse["response"].toObject();
+    int actionID = response["result"].toInt();
+    m_actionId = QString::number(actionID);
+
+    sendGetDownloadDataRequest();
+  }
+
+  void BIMserverConnection::sendGetDownloadDataRequest() {
+    QJsonObject parameters;
+    parameters["actionId"] = QJsonValue(m_actionId);
+    QJsonObject request;
+    request["interface"] = QJsonValue("Bimsie1ServiceInterface");
+    request["method"] = QJsonValue("getDownloadData");
+    request["parameters"] = parameters;
+    QJsonObject getDownloadDataRequest;
+    getDownloadDataRequest["token"] = QJsonValue(m_token);
+    getDownloadDataRequest["request"] = request;
+
+    QJsonDocument doc;
+    doc.setObject(getDownloadDataRequest);
+
+    QByteArray getDownloadDataJson = doc.toJson();
+
+    //setup network connection
+    QNetworkRequest qNetworkRequest(m_bimserverURL);
+    qNetworkRequest.setRawHeader("Content-Type", "application/json");
+
+    // disconnect all signals from m_networkManager to this
+    disconnect(m_networkManager, nullptr, this, nullptr);
+    connect(m_networkManager, &QNetworkAccessManager::finished, this, &BIMserverConnection::processGetDownloadDataRequest);
+    m_networkManager->post(qNetworkRequest, getDownloadDataJson);
+  }
+
+  void BIMserverConnection::processGetDownloadDataRequest(QNetworkReply *rep) {
+    //extract token from login Request
+    QByteArray responseArray = rep->readAll();
+
+    QJsonDocument responseDoc = QJsonDocument::fromJson(responseArray);
+    QJsonObject downloadResponse = responseDoc.object();
+    QJsonObject response = downloadResponse["response"].toObject();
+    QJsonObject result = response["result"].toObject();
+    QString file = result["file"].toString();
+
+    //decode the response
+    QByteArray byteArray;
+    byteArray.append(file);
+    QString OSMFile = QByteArray::fromBase64(byteArray);
+
+    //TODO connect this signal to the GUI slots to call ReverseTranslator
+
+    emit osmStringRetrieved(OSMFile);
+
+  }
+
+  int main(int argc, char *argv[]) {
+    
+    std::cout << "Hello World";
+    getchar();
+
+    return 0;
+  }
+  
 
 } // bimserver
 } // openstudio
