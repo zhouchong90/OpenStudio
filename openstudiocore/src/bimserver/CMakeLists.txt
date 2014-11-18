@@ -1,10 +1,14 @@
 set(target_name openstudio_bimserver)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(${target_name}_src
   BIMserverAPI.hpp
   mainpage.hpp
   ReverseTranslator.hpp
   ReverseTranslator.cpp
+  BIMserverConnection.hpp
+  BIMserverConnection.cpp
 )
 
 set(${target_name}_test_src
@@ -24,6 +28,7 @@ set(${target_name}_depends
   openstudio_utilities
   openstudio_model
   openstudio_energyplus
+  openstudio_osversion
   zkexpat
 )
 
