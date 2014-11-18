@@ -279,14 +279,5 @@ namespace bimserver {
 
   }
 
-  int main(int argc, char *argv[]) {
-    
-    std::cout << "Hello World";
-    getchar();
-
-    return 0;
-  }
-  
-
 } // bimserver
 } // openstudio
