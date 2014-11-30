@@ -107,6 +107,8 @@ class OpenStudioApp : public OSAppBase
 
   void importSDD(); 
 
+  void importIFC();
+
   void open();
 
   void loadLibrary();
