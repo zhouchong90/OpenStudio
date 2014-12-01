@@ -1,0 +1,52 @@
+#ifndef BIMSERVER_PROJECTIMPORTATION_HPP
+#define BIMSERVER_PROJECTIMPORTATION_HPP
+
+#include <QDialog>
+#include <QLabel>
+#include <QListWidget>
+#include <QPushButton>
+#include "BIMserverConnection.hpp"
+
+namespace openstudio {
+namespace bimserver {
+
+/// This shows a input dialog to gather project id for import
+class ProjectImportation: public QDialog
+{
+    Q_OBJECT
+
+public:
+
+    /// Default constructor
+    ProjectImportation(QWidget *parent);
+
+    /// Virtual destructor
+    ~ProjectImportation();
+
+public slots:
+
+	/// Takes projectList from BIMserverConnection and prints out projects
+    void processProjectList(QStringList projectList);
+
+    /// Takes osmString from BIMserverConnection and translates it into model
+    void processOSMString(QString osmString);
+
+private:
+
+		int 						projectID;
+    QLabel      		*introLabel;
+    QListWidget 		*listWidget;
+    QPushButton 		*okButton;
+    QPushButton 		*cancelButton;
+    BIMserverConnection *m_bimserverConnector;
+
+
+private slots:
+	/// What to do when the user clicked on the okButton
+    void okButton_clicked(); 
+};
+
+} // bimserver
+} // openstudio
+
+#endif // BIMSERVER_PROJECTIMPORTATION_HPP 
