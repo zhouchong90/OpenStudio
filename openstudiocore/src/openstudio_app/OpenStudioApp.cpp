@@ -91,6 +91,7 @@
 
 #include "../gbxml/ReverseTranslator.hpp"
 #include "../sdd/ReverseTranslator.hpp"
+#include "../bimserver/ProjectImportation.hpp"
 
 #include <QAbstractButton>
 #include <QDesktopServices>
@@ -144,6 +145,7 @@ OpenStudioApp::OpenStudioApp( int & argc, char ** argv, const QSharedPointer<rul
     connect(m_startupMenu.get(), &StartupMenu::importClicked, this, &OpenStudioApp::importIdf);
     connect(m_startupMenu.get(), &StartupMenu::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
     connect(m_startupMenu.get(), &StartupMenu::importSDDClicked, this, &OpenStudioApp::importSDD);
+    connect(m_startupMenu.get(), &StartupMenu::importIFCClicked, this, &OpenStudioApp::importIFC);
     connect(m_startupMenu.get(), &StartupMenu::loadFileClicked, this, &OpenStudioApp::open);
     //connect(m_startupMenu.get(), &StartupMenu::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
     connect(m_startupMenu.get(), &StartupMenu::newClicked, this, &OpenStudioApp::newModel);
@@ -189,6 +191,7 @@ OpenStudioApp::OpenStudioApp( int & argc, char ** argv, const QSharedPointer<rul
       connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
       connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
       connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+      connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
       connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
       connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
       connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
@@ -287,6 +290,7 @@ bool OpenStudioApp::openFile(const QString& fileName, bool restoreTabs)
       connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
       connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
       connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+      connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
       connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
       connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
       connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
@@ -368,6 +372,7 @@ void OpenStudioApp::newFromTemplateSlot( NewFromTemplateEnum newFromTemplateEnum
   connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
   connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
   connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+  connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
   connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
   connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
   connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
@@ -450,6 +455,7 @@ void OpenStudioApp::importIdf()
         connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
         connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
         connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+        connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC)
         connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
         connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
         connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
@@ -499,6 +505,15 @@ void OpenStudioApp::importgbXML()
 void OpenStudioApp::importSDD()
 {
   import(SDD);
+}
+
+void OpenStudioApp::importIFC()
+{
+  QWidget * parent = nullptr;
+
+  ProjectImportation projectImportation(parent);
+  projectImportation.show();
+  
 }
 
 void OpenStudioApp::import(OpenStudioApp::fileType type)

@@ -137,7 +137,7 @@ namespace bimserver {
       int lastRevisionId = ifcProject["lastRevisionId"].toInt();
       QString projectName = ifcProject["name"].toString();
       
-      QString project = QString::number(lastRevisionId).append(";").append(projectName);
+      QString project = QString::number(lastRevisionId).append(":").append(projectName);
       
       projectList.append(project);
     }
