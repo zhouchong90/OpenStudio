@@ -3,19 +3,11 @@ cmake_minimum_required(VERSION 2.8.11)
 project(OpenStudio)
 
 set(CMAKE_VERSION_MAJOR 1)
-set(CMAKE_VERSION_MINOR 5)
-set(CMAKE_VERSION_PATCH 4)
+set(CMAKE_VERSION_MINOR 4)
+set(CMAKE_VERSION_PATCH 2)
 
 set(CMAKE_VERSION_BUILD "Unknown" CACHE STRING "Build number")
 find_package(Git)
-
-if(NOT GIT_FOUND)
-  find_program(GIT_EXECUTABLE git HINTS "$ENV{LOCALAPPDATA}/Programs/git/bin")
-  if (NOT GIT_EXECUTABLE_NOTFOUND)
-    set(GIT_FOUND TRUE)
-  endif()
-endif()
-
 if(GIT_FOUND)
   execute_process(COMMAND "${GIT_EXECUTABLE}" "rev-parse" "--short=10" "HEAD"
                   WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
@@ -85,8 +77,6 @@ option(BUILD_PACKAGE "Build package" OFF)
 # This is a convenience for Visual Studio users
 option(ENABLE_TEST_RUNNER_TARGETS "Create test runner targets" OFF)
 
-set(MAXIMIZE_CPU_USAGE OFF CACHE BOOL "Attempt to fully load the CPU during builds")
-mark_as_advanced(MAXIMIZE_CPU_USAGE)
 
 # Build with OpenSSL support
 set(BUILD_WITH_OPENSSL ON CACHE INTERNAL "Build With OpenSSL Support For SSH Connections")
@@ -132,14 +122,12 @@ if(MSVC)
     message(FATAL_ERROR "Visual Studio earlier than VS2013 is not supported")
   elseif(${CMAKE_C_COMPILER_VERSION} VERSION_EQUAL "18.0.21005.1")
     # VS2013
-    message(SEND_ERROR "Update 4 for Visual Studio 2013 is required")
+    message(WARNING "Update 3 for Visual Studio 2013 is strongly recommended")
   elseif(${CMAKE_C_COMPILER_VERSION} VERSION_EQUAL "18.00.30501")
     # VS2013 Update 2:
-    message(SEND_ERROR "Update 4 for Visual Studio 2013 is required")
+    message(WARNING "Update 3 for Visual Studio 2013 is strongly recommended")
   elseif(${CMAKE_C_COMPILER_VERSION} VERSION_EQUAL "18.00.30723")
-    message(WARNING "Update 4 for Visual Studio 2013 is strongly recommended")
-  elseif(${CMAKE_C_COMPILER_VERSION} VERSION_EQUAL "18.00.31101")
-    # VS2013 Update 4: no-op
+    # VS2013 Update 3: no-op
   endif()
 
   # Build with Multiple Processes
@@ -147,25 +135,22 @@ if(MSVC)
   mark_as_advanced(BUILD_WITH_MULTIPLE_PROCESSES)
 endif()
 
-
 # Apple Sanity Check
 if(APPLE)
   if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     message(FATAL_ERROR "OSX Deployment Target Must Be Set")
   endif()
-  
-  set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "Arch" FORCE)
 
   if(NOT CMAKE_OSX_SYSROOT)
     message(FATAL_ERROR "OSX Sysroot must be set")
+  elseif(CMAKE_OSX_SYSROOT MATCHES ".*10\\.8.*")
+    set(OSX_SDK "10.8")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c11 -std=c++11 -stdlib=libc++")
   elseif(CMAKE_OSX_SYSROOT MATCHES ".*10\\.9.*")
     set(OSX_SDK "10.9")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c11 -std=c++11 -stdlib=libc++")
-  elseif(CMAKE_OSX_SYSROOT MATCHES ".*10\\.10.*")
-    set(OSX_SDK "10.10")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c11 -std=c++11 -stdlib=libc++")
   else()
-    message(FATAL_ERROR "OSX Sysroot must use the 10.9 or 10.10 SDK")
+    message(FATAL_ERROR "OSX Sysroot must use the 10.8 or 10.9 SDK")
   endif()
 
 endif()
@@ -232,72 +217,32 @@ if(BUILD_RUBY_GEM)
 endif()
 
 if(MSVC)
+  # need to know if using the Express edition of Visual Studio, devenv is split into multiple programs
+  option(MSVC_IS_EXPRESS "using the Express editions of Visual Studio, must install both C++ and C# versions" FALSE)
+
   mark_as_advanced(CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # Use PCH
 option(USE_PCH "Use precompiled headers" OFF)
 
-
-# Smart find qt location, looking for 64bit when appropriate
-# and preferring opengl installations
-if(MSVC)
+if(MSVC AND MSVC_IS_EXPRESS)
   if(CMAKE_CL_64)
-    set(COMPILER_ARCH_TAG "_64")
+    list(APPEND CMAKE_LIBRARY_PATH "C:/Program Files (x86)/Windows Kits/8.0/Lib/win8/um/x64/")
   else()
-    set(COMPILER_ARCH_TAG "")
+    list(APPEND CMAKE_LIBRARY_PATH "C:/Program Files (x86)/Windows Kits/8.0/Lib/win8/um/x86/")
+    list(APPEND CMAKE_LIBRARY_PATH "C:/Program Files/Windows Kits/8.0/Lib/win8/um/x86/")
   endif()
-
-  if (MSVC_VERSION STREQUAL "1800")
-    set(COMPILER_VER_TAG "2013")
-  else()
-    set(COMPILER_VER_TAG "2014")
-  endif()
-
-  file(GLOB_RECURSE QMAKE_LOCATIONS "C:/Qt/qmake.exe")
-
-  message(STATUS "Qt Locations: ${QMAKE_LOCATIONS}")
-
-  if(QMAKE_LOCATIONS MATCHES ".*msvc${COMPILER_VER_TAG}${COMPILER_ARCH_TAG}_opengl.*")
-    set(HAS_OPENGL_INSTALL TRUE)
-    set(OPENGL_TAG "_opengl")
-  else()
-    set(HAS_OPENGL_INSTALL FALSE)
-    set(OPENGL_TAG "")
-  endif()
-
-  set(QT_HINT_DIR "")
-  foreach(LOC ${QMAKE_LOCATIONS})
-    if(LOC MATCHES ".*msvc${COMPILER_VER_TAG}${COMPILER_ARCH_TAG}${OPENGL_TAG}/")
-      get_filename_component(PDIR "${LOC}" DIRECTORY)
-      get_filename_component(GPDIR "${PDIR}" DIRECTORY)
-      if(HAS_OPENGL_INSTALL)
-        if(GPDIR MATCHES ".*opengl.*")
-    list(APPEND QT_HINT_DIR "${GPDIR}")
-  endif()
-      else()
-  list(APPEND QT_HINT_DIR "${GPDIR}")
-      endif()
-    endif()
-  endforeach()
-
-  # we want sort, this will do both a lexicographical sort of the version numbers, putting the newest last and picking the 
-  # longest (aka opengl) last. Then we sort it in reverse to prefer the highest version numbers with opengl
-  list(SORT QT_HINT_DIR)
-  list(REVERSE QT_HINT_DIR)
-else()
-  set(QT_HINT_DIR "")
 endif()
 
-find_package(Qt5Widgets HINTS ${QT_HINT_DIR}) #Qt5Core, Qt5Gui, Qt5Widgets
-find_package(Qt5Sql HINTS ${QT_HINT_DIR}) #Qt5Core, Qt5Sql
-find_package(Qt5Network HINTS ${QT_HINT_DIR}) #Qt5Core, Qt5Network
-find_package(Qt5Xml HINTS ${QT_HINT_DIR}) #Qt5Core, Qt5Xml
-find_package(Qt5WebKit HINTS ${QT_HINT_DIR}) #Qt5Core, Qt5Gui, Qt5Network, Qt5WebKit
-find_package(Qt5WebKitWidgets HINTS ${QT_HINT_DIR}) #Qt5Core, Qt5Gui, Qt5Network, Qt5WebKit, Qt5WebKitWidgets, Qt5Widgets
-#find_package(Qt5WinExtras HINTS ${QT_HINT_DIR}) #Qt5Core, Qt5Gui, Qt5WinExtras
-find_package(Qt5Concurrent HINTS ${QT_HINT_DIR}) #Qt5Core, Qt5Concurrent
-find_package(Qt5PrintSupport HINTS ${QT_HINT_DIR}) #Qt5Core, Qt5Gui, Qt5PrintSupport, Qt5Widgets
+find_package(Qt5Widgets) #Qt5Core, Qt5Gui, Qt5Widgets
+find_package(Qt5Sql) #Qt5Core, Qt5Sql
+find_package(Qt5Network) #Qt5Core, Qt5Network
+find_package(Qt5Xml) #Qt5Core, Qt5Xml
+find_package(Qt5WebKit) #Qt5Core, Qt5Gui, Qt5Network, Qt5WebKit
+find_package(Qt5WebKitWidgets) #Qt5Core, Qt5Gui, Qt5Multimedia, Qt5MultimediaWidgets, Qt5Network, Qt5OpenGL, Qt5Positioning, Qt5PrintSupport, Qt5Qml, Qt5Quick, Qt5Sensors, Qt5WebKit, Qt5WebKitWidgets, Qt5Widgets
+#find_package(Qt5WinExtras) #Qt5Core, Qt5Gui, Qt5WinExtras
+find_package(Qt5Concurrent) #Qt5Core, Qt5Concurrent
 mark_as_advanced(
   Qt5Concurrent_DIR
   Qt5Core_DIR
@@ -328,7 +273,7 @@ if(Qt5Widgets_DIR)
   if(${Qt5Widgets_VERSION} VERSION_LESS "5.2.1")
     message(FATAL_ERROR "Minimum supported Qt is v5.2.1")
   endif()
-elseif(UNIX)
+else()
   option(BUILD_QT "Build Qt" ON)
 endif()
 
@@ -423,7 +368,7 @@ else()
 endif()
 
 
-find_package(SWIG 3.0.0)
+find_package(SWIG 2.0.10)
 mark_as_advanced(
   SWIG_DIR
   SWIG_EXECUTABLE
@@ -440,17 +385,8 @@ else()
 endif()
 
 if(NOT WIN32)
-  find_program(RUBY_EXECUTABLE NAMES ruby2.0 ruby PATHS $ENV{CMAKE_RUBY_PATH} NO_SYSTEM_ENVIRONMENT_PATH)
-
-  find_package(Ruby 2.0)
-
-  if(NOT RUBY_FOUND)
-    find_path(RUBY_CONFIG_INCLUDE_DIR
-      NAMES ruby/config.h config.h
-      HINTS /usr/include/x86_64-linux-gnu/ruby-2.0.0
-    )
-    find_package(Ruby 2.0)
-  endif()
+  find_program(RUBY_EXECUTABLE NAMES ruby PATHS $ENV{CMAKE_RUBY_PATH} NO_SYSTEM_ENVIRONMENT_PATH)
+  find_package(Ruby)
 endif()
 
 
@@ -459,7 +395,12 @@ if(WIN32 AND MSVC AND CMAKE_CL_64)
 endif()
 
 if(APPLE)
-  option(BUILD_RUBY "Build Ruby" OFF)
+  if (OSX_SDK STREQUAL "10.8") 
+    # Ruby 2.0 is not in 10.8 SDK
+    option(BUILD_RUBY "Build Ruby" ON)
+  else()
+    option(BUILD_RUBY "Build Ruby" OFF)
+  endif()
 elseif(UNIX)
   if(RUBY_FOUND)
     option(BUILD_RUBY "Build Ruby" OFF)
@@ -476,6 +417,25 @@ endif()
 
 if(BUILD_WITH_MULTIPLE_PROCESSES)
   add_definitions(/MP)
+endif()
+
+if(CMAKE_CL_64 OR (MSVC AND BUILD_QT))
+  if(CMAKE_CL_64)
+    set(NMAKE_ARCH "/amd64")
+  else()
+    set(NMAKE_ARCH "")
+  endif()
+  if(MSVC12)
+    find_program(NMAKE_EXE nmake PATHS
+      "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\VisualStudio\\12.0;InstallDir]/../../VC/bin${NMAKE_ARCH}"
+      $ENV{VS120COMNTOOLS}../../VC/bin${NMAKE_ARCH}
+    )
+  endif()
+
+  if(NMAKE_EXE STREQUAL "NMAKE_EXE-NOTFOUND" OR NMAKE_EXE STREQUAL "nmake")
+    message(WARNING "NMake not found - CMake will attempt to call nmake directly")
+    set(NMAKE_EXE "nmake" CACHE STRING "nmake executable" FORCE)
+  endif()
 endif()
 
 if(BUILD_NODE)
@@ -501,42 +461,69 @@ if(BUILD_V8)
 endif()
 
 if(BUILD_RUBY AND UNIX)
-  ExternalProject_Add(Ruby
-    URL http://developer.nrel.gov/downloads/buildings/openstudio/src/ruby-2.0.0-p594.tar.gz
-    URL_MD5 a9caa406da5d72f190e28344e747ee74
-    CONFIGURE_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby && sh -c "./configure --enable-shared --without-tcl --without-tk --disable-install-doc --prefix=${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install CFLAGS=\"-fPIC\""
-    BUILD_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby && $(MAKE)
-    INSTALL_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby && $(MAKE) install
-  )
-  set(RUBY_EXECUTABLE ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install/bin/ruby)
-  
   if(APPLE)
-    set(RUBY_LIBRARY ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install/lib/libruby.2.0.0.dylib)
+    if (OSX_SDK STREQUAL "10.8") 
+      # Unpackage build of Ruby 2.0 made on Mac 10.8
+      ExternalProject_Add(Ruby
+        URL http://developer.nrel.gov/downloads/buildings/openstudio/src/ruby-2.0.0-p481-shared.zip
+        URL_MD5 af634ed75a961e69c03c6458a2e8c110
+        PATCH_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/bin/ && sh -c "chmod +x *" 
+              COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/lib/ && sh -c "install_name_tool -id ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/lib/libruby.2.0.0.dylib	${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/lib/libruby.2.0.0.dylib"
+        CONFIGURE_COMMAND ""
+        BUILD_COMMAND ""
+        INSTALL_COMMAND ""
+      )      
+      set(RUBY_EXECUTABLE ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/bin/ruby)
+      set(RUBY_LIBRARY ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/lib/libruby.2.0.0.dylib)
+    else()
+      # build shared libraries for compatibility with SketchUp
+      ExternalProject_Add(Ruby
+        URL http://developer.nrel.gov/downloads/buildings/openstudio/src/ruby-2.0.0-p481.tar.gz
+        URL_MD5 3913e0ad6cc572b7358e4c6a8c4b2551
+        CONFIGURE_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby && sh -c "./configure --enable-shared --without-tcl --without-tk --disable-install-doc --prefix=${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install --with-arch=i386,x86_64 CFLAGS=\"-fPIC\" LDFLAGS=\"\""
+        BUILD_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby && $(MAKE)
+        INSTALL_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby && $(MAKE) install
+        )
+      set(RUBY_EXECUTABLE ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install/bin/ruby)
+      set(RUBY_LIBRARY ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install/lib/libruby.2.0.0.dylib)
+    endif()
   else()
+    # have to build shared libraries on linux otherwise has a double free when unloading a ruby module
+    ExternalProject_Add(Ruby
+      URL http://developer.nrel.gov/downloads/buildings/openstudio/src/ruby-2.0.0-p481.tar.gz
+      URL_MD5 3913e0ad6cc572b7358e4c6a8c4b2551
+      CONFIGURE_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby && sh -c "./configure --enable-shared --without-tcl --without-tk --disable-install-doc --prefix=${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install CFLAGS=\"-fPIC\" "
+      BUILD_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby && $(MAKE)
+      INSTALL_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby && $(MAKE) install
+    )
+    set(RUBY_EXECUTABLE ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install/bin/ruby)
     set(RUBY_LIBRARY ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install/lib/libruby.so)
   endif()
 endif()
 
-# Always unpack Ruby on Windows
+# Always build Ruby on Windows
 if(WIN32)
   if(CMAKE_CL_64)
     ExternalProject_Add(Ruby
-      URL http://developer.nrel.gov/downloads/buildings/openstudio/src/ruby-2.0.0p594-aws-win64.zip
-      URL_MD5 18b4ea46e7dec09de006ab9cb75ef9de
-      PATCH_COMMAND ${PATCH_EXE} -p1 < ${CMAKE_SOURCE_DIR}/dependencies/ruby/x64-mingw32.patch
-      CONFIGURE_COMMAND ""
-      BUILD_COMMAND ""
-      INSTALL_COMMAND ""
+      URL http://developer.nrel.gov/downloads/buildings/openstudio/src/ruby-2.0.0-p481.tar.gz
+      URL_MD5 3913e0ad6cc572b7358e4c6a8c4b2551
+      PATCH_COMMAND "${CMAKE_COMMAND}" -E copy ${CMAKE_SOURCE_DIR}/dependencies/mkexports.rb ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/win32/mkexports.rb COMMAND "${CMAKE_COMMAND}" -E copy ${CMAKE_SOURCE_DIR}/dependencies/ruby/ruby-2.0.0-p481/Makefile.sub ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/win32/Makefile.sub
+      CONFIGURE_COMMAND cmd /C "cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-build && ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/win32/configure.bat --prefix=${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install --target=x64-mswin64 --disable-install-doc --disable-win95"
+      BUILD_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-build && ${NMAKE_EXE}
+      INSTALL_COMMAND cd ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-build && ${NMAKE_EXE} install
     )
-    set(RUBY_EXECUTABLE ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/bin/ruby.exe)
-    set(RUBY_DLL x64-msvcrt-ruby200.dll)
-    set(RUBY_DLLPATH "${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/bin/${RUBY_DLL}")
-    set(RUBY_LIBRARY "${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/lib/libx64-msvcrt-ruby200.dll.a")
+    set(RUBY_EXECUTABLE ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install/bin/ruby.exe)
+    if(MSVC12)
+      set(RUBY_DLL x64-msvcr120-ruby200.dll)
+      set(RUBY_DLLPATH "${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install/bin/${RUBY_DLL}")
+      set(RUBY_LIBRARY "${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby-install/lib/x64-msvcr120-ruby200.lib")
+    endif()
   else()
+    # And windows requires mingw to build ruby, so we just unpackage it locally
     ExternalProject_Add(Ruby
-      URL http://developer.nrel.gov/downloads/buildings/openstudio/src/ruby-2.0.0p594-aws-win32.zip
-      URL_MD5 f5dc50a99ddd5f0f93c47546bd21c396
-      PATCH_COMMAND ${PATCH_EXE} -p1 < ${CMAKE_SOURCE_DIR}/dependencies/ruby/i386-mingw32.patch
+      URL http://developer.nrel.gov/downloads/buildings/openstudio/src/ruby-2.0.0p353-aws-win32.zip
+      URL_MD5 1f6e4348099b26e92909db62dcd3b173
+      PATCH_COMMAND "${CMAKE_COMMAND}" -E copy ${CMAKE_SOURCE_DIR}/dependencies/ruby/mingw32-ruby2.0/msvcrt-ruby200.lib  ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/lib COMMAND "${CMAKE_COMMAND}" -E copy ${CMAKE_SOURCE_DIR}/dependencies/ruby/mingw32-ruby2.0/config.h ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/include/ruby-2.0.0/i386-mingw32/ruby COMMAND "${CMAKE_COMMAND}" -E copy ${CMAKE_SOURCE_DIR}/dependencies/ruby/mingw32-ruby2.0/missing.h ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/include/ruby-2.0.0/ruby COMMAND "${CMAKE_COMMAND}" -E copy ${CMAKE_SOURCE_DIR}/dependencies/ruby/mingw32-ruby2.0/ruby.h ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/include/ruby-2.0.0/ruby
       CONFIGURE_COMMAND ""
       BUILD_COMMAND ""
       INSTALL_COMMAND ""
@@ -544,7 +531,7 @@ if(WIN32)
     set(RUBY_EXECUTABLE ${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/bin/ruby.exe)
     set(RUBY_DLL msvcrt-ruby200.dll)
     set(RUBY_DLLPATH "${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/bin/${RUBY_DLL}")
-    set(RUBY_LIBRARY "${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/lib/libmsvcrt-ruby200.dll.a")
+    set(RUBY_LIBRARY "${CMAKE_BINARY_DIR}/Ruby-prefix/src/Ruby/lib/msvcrt-ruby200.lib")
   endif()
 endif()
 
@@ -602,7 +589,7 @@ endif()
 
 if(BUILD_BOOST)
   if(APPLE)
-    set(apple-flags "-std=c11 -std=c++11 -stdlib=libc++")
+    set(apple-flags "-arch i386 -arch x86_64 -std=c11 -std=c++11 -stdlib=libc++")
     ExternalProject_Add(Boost
       URL http://developer.nrel.gov/downloads/buildings/openstudio/src/boost_1_55_0.tar.gz
       URL_MD5 93780777cfbf999a600f62883bd54b17
@@ -674,7 +661,6 @@ ExternalProject_Add(GoogleTest
   -DCMAKE_SHARED_LINKER_FLAGS:STRING=${CMAKE_SHARED_LINKER_FLAGS}
 )
 
-
 set(GTEST_INCLUDE_DIR ${CMAKE_BINARY_DIR}/GoogleTest-prefix/src/GoogleTest/include)
 set(GTEST_LIB_DIR ${CMAKE_BINARY_DIR}/GoogleTest-prefix/src/GoogleTest-build)
 
@@ -686,7 +672,6 @@ if(BUILD_QT)
   set(Qt5WebKit_DIR ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install/lib/cmake/Qt5WebKit)
   set(Qt5WebKitWidgets_DIR ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install/lib/cmake/Qt5WebKitWidgets)
   set(Qt5Concurrent_DIR ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install/lib/cmake/Qt5Concurrent)
-  set(Qt5PrintSupport_DIR ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install/lib/cmake/Qt5PrintSupport)
 
   if(APPLE)
     # We're going to explicitly use the SDK specified in the configuration by the user
@@ -698,34 +683,43 @@ if(BUILD_QT)
     # make (and attempt to pass parameters to the child make jobs) is breaking our ability to install
     # the below code circumvents that by calling make through a call to "sh"
     ExternalProject_Add(Qt
-      URL http://developer.nrel.gov/downloads/buildings/openstudio/src/qt-everywhere-opensource-src-5.3.2.tar.gz
-      URL_MD5 febb001129927a70174467ecb508a682
-      CONFIGURE_COMMAND /bin/sh -c "cd ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt/ && ./configure -v ${APPLE_SDK_COMMAND} -platform macx-clang-64 -release -opensource -openssl -no-pch -no-ssse3 -qt-sql-sqlite -plugin-sql-sqlite -skip enginio -no-compile-examples -nomake examples -nomake tests -nomake tools -skip qtmultimedia -confirm-license -prefix ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install"
-      PATCH_COMMAND ${PATCH_EXE} -p1 < ${CMAKE_SOURCE_DIR}/dependencies/qt/qmacstyle_mac.patch
+      URL http://developer.nrel.gov/downloads/buildings/openstudio/src/qt-everywhere-opensource-src-5.3.1.tar.gz
+      URL_MD5 a355749e4f200a6392ecad151d1d0cdc
+      CONFIGURE_COMMAND /bin/sh -c "cd ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt/ && ./configure -v ${APPLE_SDK_COMMAND} -platform macx-clang-32-64 -release -opensource -openssl -no-pch -no-ssse3 -qt-sql-sqlite -plugin-sql-sqlite -skip enginio -no-compile-examples -nomake examples -nomake tests -nomake tools -skip qtmultimedia -confirm-license -prefix ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install"
+      PATCH_COMMAND "${CMAKE_COMMAND}" -E copy_directory ${CMAKE_SOURCE_DIR}/dependencies/qt/macx-clang-32-64/ ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt/qtbase/mkspecs/macx-clang-32-64/
       BUILD_COMMAND /bin/sh -c "cd ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt/ && make -j${QT_CPUCOUNT}"
       INSTALL_COMMAND /bin/sh -c "cd ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt/ && make -j1 install"
     )
   elseif(UNIX)
     message(WARNING "Qt5 super build is currently untested")
     ExternalProject_Add(Qt
-      URL http://developer.nrel.gov/downloads/buildings/openstudio/src/qt-everywhere-opensource-src-5.3.2.tar.gz
-      URL_MD5 febb001129927a70174467ecb508a682
+      URL http://developer.nrel.gov/downloads/buildings/openstudio/src/qt-everywhere-opensource-src-5.3.1.tar.gz
+      URL_MD5 a355749e4f200a6392ecad151d1d0cdc
       CONFIGURE_COMMAND ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt/configure -debug-and-release -opensource -confirm-license -shared -qt-sql-sqlite -qt-xcb -openssl -nomake examples -nomake tests -plugindir ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install/share/openstudio/qtplugins -qtlibinfix OpenStudio -prefix ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install
       BUILD_COMMAND $(MAKE) -f ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-build/Makefile
       INSTALL_COMMAND cd ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-build && $(MAKE) install
     )
   else()
-    message(FATAL_ERROR "Qt5 cannot currently be built for Windows with the super build.  Please download a Qt installer from http://qt.io/")
+    message(FATAL_ERROR "Qt5 cannot currently be built for Windows with the super build")
+    #find_program(NMAKE_EXE nmake)
+
+    #ExternalProject_Add(Qt
+    #  URL http://developer.nrel.gov/downloads/buildings/openstudio/src/qt-everywhere-opensource-src-5.3.1.tar.gz
+    #  URL_MD5 a355749e4f200a6392ecad151d1d0cdc
+    #  CONFIGURE_COMMAND cd ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt && configure -debug-and-release -opensource -confirm-license -shared -plugin-sql-sqlite -no-qt3support -nomake examples -nomake docs -nomake demos -mp -prefix ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install -L ${OPENSSL_ROOT_DIR}/lib -I ${OPENSSL_ROOT_DIR}/include -openssl
+    #  BUILD_COMMAND cd ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt && ${NMAKE_EXE}
+    #  INSTALL_COMMAND cd ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt && ${NMAKE_EXE} install
+    #)
   endif()
 
-  #Update this for Windows if BUILD_QT is enabled for WINDOWS
+  #Update this for Windows after BUILD_QT is updated for WINDOWS
   if(UNIX)
     list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install/lib/cmake)
   endif()
 endif()
 
 
-set(OpenStudioCore_DIR ${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build)
+set(OpenStudioCore_DIR ${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build)
 
 # Set up the dependencies for OpenStudioCore
 set(OpenStudioCore_DEPENDS GoogleTest)
@@ -755,16 +749,9 @@ if(BUILD_V8)
 endif()
 
 
-if(MSVC)
-  set(OS_BUILD_COMMAND BUILD_COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build" --config $(Configuration) -- /maxcpucount)
-else()
-  set(OS_BUILD_COMMAND "")
-endif()
-
-ExternalProject_Add(OSCore
+ExternalProject_Add(OpenStudioCore
   DEPENDS ${OpenStudioCore_DEPENDS}
   SOURCE_DIR ${CMAKE_SOURCE_DIR}/openstudiocore
-  ${OS_BUILD_COMMAND}
   CMAKE_CACHE_ARGS
     -DGTEST_LIB_DIR:PATH=${GTEST_LIB_DIR}
     -DGTEST_INCLUDE_DIR:PATH=${GTEST_INCLUDE_DIR}
@@ -785,6 +772,7 @@ ExternalProject_Add(OSCore
     -DBUILD_WITH_OPENSSL:BOOL=${BUILD_WITH_OPENSSL}
     -DBUILD_RUBY_GEM:BOOL=${BUILD_RUBY_GEM}
     -DBUILD_RUBY_GEM_WITH_LIBS:BOOL=${BUILD_RUBY_GEM_WITH_LIBS}
+    -DMSVC_IS_EXPRESS:BOOL=${MSVC_IS_EXPRESS}
     -DUSE_PCH:BOOL=${USE_PCH}
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     -DCMAKE_CXX_COMPILER:STRING=${CMAKE_CXX_COMPILER}
@@ -809,7 +797,6 @@ ExternalProject_Add(OSCore
     -DQt5WebKitWidgets_DIR:STRING=${Qt5WebKitWidgets_DIR}
     #-DQt5WinExtras_DIR:STRING=${Qt5WinExtras_DIR}
     -DQt5Concurrent_DIR:STRING=${Qt5Concurrent_DIR}
-    -DQt5PrintSupport_DIR:STRING=${Qt5PrintSupport_DIR}
     -DSWIG_EXECUTABLE:STRING=${SWIG_EXECUTABLE}
     -DRUBY_EXECUTABLE:STRING=${RUBY_EXECUTABLE}
     -DNODE_BIN_DIR:STRING=${NODE_BIN_DIR}
@@ -823,74 +810,73 @@ ExternalProject_Add(OSCore
     -DRADIANCE_LOCATION:PATH=${RADIANCE_LOCATION}
     -DOPENSSL_ROOT_DIR:PATH=${OPENSSL_ROOT_DIR}
     -DPATCH_EXE:PATH=${PATCH_EXE}
-    -DMAXIMIZE_CPU_USAGE:BOOL=${MAXIMIZE_CPU_USAGE}
     INSTALL_COMMAND ""
 )
 
-#if(BUILD_QT AND MSVC)
-#  file(GLOB dlls ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install/bin/*.dll)
-#  foreach(dll ${dlls})
-#    get_filename_component(filename "${dll}" NAME_WE)
-#    ExternalProject_Add_Step(OSCore "Install${filename}ReleaseDLL"
-#      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/Release"
-#      DEPENDERS configure
-#    )
-#    ExternalProject_Add_Step(OSCore "Install${filename}DebugDLL"
-#      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/Debug"
-#      DEPENDERS configure
-#    )
-#    ExternalProject_Add_Step(OSCore "Install${filename}RelWithDebInfoDLL"
-#      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/RelWithDebInfo"
-#      DEPENDERS configure
-#    )
-#    ExternalProject_Add_Step(OSCore "Install${filename}MinSizeRelDLL"
-#      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/MinSizeRel"
-#      DEPENDERS configure
-#    )
-#  endforeach()
-#endif()
+if(BUILD_QT AND MSVC)
+  file(GLOB dlls ${CMAKE_BINARY_DIR}/Qt-prefix/src/Qt-install/bin/*.dll)
+  foreach(dll ${dlls})
+    get_filename_component(filename "${dll}" NAME_WE)
+    ExternalProject_Add_Step(OpenStudioCore "Install${filename}ReleaseDLL"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/Release"
+      DEPENDERS configure
+    )
+    ExternalProject_Add_Step(OpenStudioCore "Install${filename}DebugDLL"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/Debug"
+      DEPENDERS configure
+    )
+    ExternalProject_Add_Step(OpenStudioCore "Install${filename}RelWithDebInfoDLL"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/RelWithDebInfo"
+      DEPENDERS configure
+    )
+    ExternalProject_Add_Step(OpenStudioCore "Install${filename}MinSizeRelDLL"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${dll}" "${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/MinSizeRel"
+      DEPENDERS configure
+    )
+  endforeach()
+endif()
 
 if(MSVC)
-  ExternalProject_Add_Step(OSCore MakeRubyReleaseFolder
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/Release
+  ExternalProject_Add_Step(OpenStudioCore MakeRubyReleaseFolder
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/Release
     DEPENDERS configure
   )
-  ExternalProject_Add_Step(OSCore MakeRubyDebugFolder
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/Debug
+  ExternalProject_Add_Step(OpenStudioCore MakeRubyDebugFolder
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/Debug
     DEPENDERS configure
   )
-  ExternalProject_Add_Step(OSCore MakeRubyRelWithDebInfoFolder
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/RelWithDebInfo
+  ExternalProject_Add_Step(OpenStudioCore MakeRubyRelWithDebInfoFolder
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/RelWithDebInfo
     DEPENDERS configure
   )
-  ExternalProject_Add_Step(OSCore MakeRubyMinSizeRelFolder
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/MinSizeRel
+  ExternalProject_Add_Step(OpenStudioCore MakeRubyMinSizeRelFolder
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/MinSizeRel
     DEPENDERS configure
   )
 
 
-  ExternalProject_Add_Step(OSCore MakeRubyReleaseDLL
-    COMMAND ${CMAKE_COMMAND} -E copy "${RUBY_DLLPATH}" "${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/Release/${RUBY_DLL}"
+  ExternalProject_Add_Step(OpenStudioCore MakeRubyReleaseDLL
+    COMMAND ${CMAKE_COMMAND} -E copy "${RUBY_DLLPATH}" "${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/Release/${RUBY_DLL}"
     DEPENDERS configure
   )
-  ExternalProject_Add_Step(OSCore MakeRubyDebugDLL
-    COMMAND ${CMAKE_COMMAND} -E copy "${RUBY_DLLPATH}" "${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/Debug/${RUBY_DLL}"
+  ExternalProject_Add_Step(OpenStudioCore MakeRubyDebugDLL
+    COMMAND ${CMAKE_COMMAND} -E copy "${RUBY_DLLPATH}" "${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/Debug/${RUBY_DLL}"
     DEPENDERS configure
   )
-  ExternalProject_Add_Step(OSCore MakeRubyRelWithDebInfoDLL
-    COMMAND ${CMAKE_COMMAND} -E copy "${RUBY_DLLPATH}" "${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/RelWithDebInfo/${RUBY_DLL}"
+  ExternalProject_Add_Step(OpenStudioCore MakeRubyRelWithDebInfoDLL
+    COMMAND ${CMAKE_COMMAND} -E copy "${RUBY_DLLPATH}" "${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/RelWithDebInfo/${RUBY_DLL}"
     DEPENDERS configure
   )
-  ExternalProject_Add_Step(OSCore MakeRubyMinSizeRelDLL
-    COMMAND ${CMAKE_COMMAND} -E copy "${RUBY_DLLPATH}" "${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products/MinSizeRel/${RUBY_DLL}"
+  ExternalProject_Add_Step(OpenStudioCore MakeRubyMinSizeRelDLL
+    COMMAND ${CMAKE_COMMAND} -E copy "${RUBY_DLLPATH}" "${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products/MinSizeRel/${RUBY_DLL}"
     DEPENDERS configure
   )
 
 endif()
 
 
-set(OPENSTUDIOCORE_BUILD_DIR ${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build)
-set(OPENSTUDIOCORE_LIB_DIR ${CMAKE_BINARY_DIR}/OSCore-prefix/src/OSCore-build/Products)
+set(OPENSTUDIOCORE_BUILD_DIR ${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build)
+set(OPENSTUDIOCORE_LIB_DIR ${CMAKE_BINARY_DIR}/OpenStudioCore-prefix/src/OpenStudioCore-build/Products)
 set(OPENSTUDIOCORE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/openstudiocore/src)
 set(OPENSTUDIOCORE_ROOT_DIR ${CMAKE_SOURCE_DIR}/openstudiocore/)
 
