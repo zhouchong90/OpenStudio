@@ -33,7 +33,7 @@ namespace bimserver {
 		BIMserverConnection *m_bimserverConnector = new BIMserverConnection(nullptr,"127.0.0.1:8082");
 		QString username("admin@bimserver.org");
 		QString password("admin");
-		connect(m_bimserverConnector, &BIMserverConnection::listAllProjects, this, ProjectImportation::processProjectList);
+		connect(m_bimserverConnector, &BIMserverConnection::listAllProjects, this, &ProjectImportation::processProjectList);
 		m_bimserverConnector->login(username,password);
 	}
 
@@ -52,7 +52,7 @@ namespace bimserver {
 	void ProjectImportation::processOSMString(QString osmString)
 	{
     ReverseTranslator reverseTranslator;
-		boost::optional<openstudio::model::Model> model = reverseTranslator.loadModel(osmString);
+		boost::optional<openstudio::model::Model> model = reverseTranslator.loadModel(osmString::toStdString());
 		translatorErrors = trans.errors();
     translatorWarnings = trans.warnings();
 
@@ -131,7 +131,7 @@ namespace bimserver {
 	{
     	projectID = std::stoi(listWidget->currentItem()->text().section(":",0,0));
     	if(projectID > 0) {
-    		connect(m_bimserverConnector,&BIMserverConnection::osmStringRetrieved, this, ProjectImportation::processOSMString);
+    		connect(m_bimserverConnector,&BIMserverConnection::osmStringRetrieved, this, &ProjectImportation::processOSMString);
     		m_bimserverConnector->download(projectID);
     	} else {
     		OS_ASSERT(false);

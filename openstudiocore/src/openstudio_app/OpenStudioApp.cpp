@@ -455,7 +455,7 @@ void OpenStudioApp::importIdf()
         connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
         connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
         connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
-        connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC)
+        connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
         connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
         connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
         connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);

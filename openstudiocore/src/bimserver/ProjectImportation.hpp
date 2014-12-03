@@ -10,41 +10,43 @@
 namespace openstudio {
 namespace bimserver {
 
-/// This shows a input dialog to gather project id for import
-class ProjectImportation: public QDialog
-{
-    Q_OBJECT
+    /// This shows a input dialog to gather project id for import
+    class ProjectImportation: public QDialog
+    {
+        Q_OBJECT
 
-public:
+    public:
 
-    /// Default constructor
-    ProjectImportation(QWidget *parent);
+        /// Default constructor
+        ProjectImportation(QWidget *parent);
 
-    /// Virtual destructor
-    ~ProjectImportation();
+        /// Virtual destructor
+        ~ProjectImportation();
 
-public slots:
+    public slots:
 
-	/// Takes projectList from BIMserverConnection and prints out projects
-    void processProjectList(QStringList projectList);
+	    /// Takes projectList from BIMserverConnection and prints out projects
+        void processProjectList(QStringList projectList);
 
-    /// Takes osmString from BIMserverConnection and translates it into model
-    void processOSMString(QString osmString);
+        /// Takes osmString from BIMserverConnection and translates it into model
+        void processOSMString(QString osmString);
 
-private:
+    private:
 
-		int 						projectID;
-    QLabel      		*introLabel;
-    QListWidget 		*listWidget;
-    QPushButton 		*okButton;
-    QPushButton 		*cancelButton;
-    BIMserverConnection *m_bimserverConnector;
+    	int 				projectID;
+        QLabel      		*introLabel;
+        QListWidget 		*listWidget;
+        QPushButton 		*okButton;
+        QPushButton 		*cancelButton;
+        BIMserverConnection *m_bimserverConnector;
 
 
-private slots:
-	/// What to do when the user clicked on the okButton
-    void okButton_clicked(); 
-};
+    private slots:
+
+	   /// What to do when the user clicks on the okButton
+        void okButton_clicked();
+
+    };
 
 } // bimserver
 } // openstudio
