@@ -54,8 +54,6 @@ class StartupView : public QWidget
 
   void importSDDClicked();
 
-  //void importIFCClicked();
-
   protected:
 
   void mouseMoveEvent(QMouseEvent *event);

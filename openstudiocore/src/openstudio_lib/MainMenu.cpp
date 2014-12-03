@@ -80,7 +80,6 @@ MainMenu::MainMenu(bool isIP, bool isPlugin, QWidget *parent) :
   importMenu->addAction(action);
   connect(action, &QAction::triggered, this, &MainMenu::importClicked, Qt::QueuedConnection);
 
-  //add the option to import an IFC file 9/30/14
   action = new QAction(tr("IFC"), this);
   importMenu->addAction(action);
   connect(action, &QAction::triggered, this, &MainMenu::importgbXMLClicked, Qt::QueuedConnection);
