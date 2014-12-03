@@ -46,11 +46,15 @@ class StartupMenu : public QMenuBar
 
   void importSDDClicked();
 
+<<<<<<< HEAD
   void importIFCClicked();
+=======
+  //void importIFCClicked();
+>>>>>>> Bimserver_Button2
 
   void loadFileClicked();
 
-  void saveAsFileClicked(); 
+  void saveAsFileClicked();
 
   void saveFileClicked();
 
