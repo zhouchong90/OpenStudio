@@ -511,7 +511,7 @@ void OpenStudioApp::importIFC()
 {
   QWidget * parent = nullptr;
 
-  ProjectImportation projectImportation(parent);
+  bimserver::ProjectImportation projectImportation(parent);
   projectImportation.show();
   
 }

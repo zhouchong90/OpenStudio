@@ -51,8 +51,8 @@ namespace bimserver {
 
 	void ProjectImportation::processOSMString(QString osmString)
 	{
-    ReverseTranslator reverseTranslator;
-		boost::optional<openstudio::model::Model> model = reverseTranslator.loadModel(osmString::toStdString());
+    ReverseTranslator trans;
+    boost::optional<openstudio::model::Model> model = trans.loadModel(osmString.toStdString());
 		translatorErrors = trans.errors();
     translatorWarnings = trans.warnings();
 
