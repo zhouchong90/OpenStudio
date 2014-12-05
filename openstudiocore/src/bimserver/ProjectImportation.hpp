@@ -18,7 +18,7 @@ namespace bimserver {
     public:
 
         /// Default constructor
-        ProjectImportation(QWidget *parent);
+        ProjectImportation(QWidget *parent, bimserver::BIMserverConnection *bc);
 
         /// Virtual destructor
         ~ProjectImportation();
@@ -28,9 +28,6 @@ namespace bimserver {
 	    /// Takes projectList from BIMserverConnection and prints out projects
         void processProjectList(QStringList projectList);
 
-        /// Takes osmString from BIMserverConnection and translates it into model
-        void processOSMString(QString osmString);
-
     private:
 
     	int 				projectID;
@@ -38,7 +35,7 @@ namespace bimserver {
         QListWidget 		*listWidget;
         QPushButton 		*okButton;
         QPushButton 		*cancelButton;
-        BIMserverConnection *m_bimserverConnector;
+        bimserver::BIMserverConnection *m_bimserverConnector;
 
 
     private slots:
