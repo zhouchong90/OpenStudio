@@ -80,10 +80,6 @@ MainMenu::MainMenu(bool isIP, bool isPlugin, QWidget *parent) :
   importMenu->addAction(action);
   connect(action, &QAction::triggered, this, &MainMenu::importClicked, Qt::QueuedConnection);
 
-  action = new QAction(tr("IFC"), this);
-  importMenu->addAction(action);
-  connect(action, &QAction::triggered, this, &MainMenu::importgbXMLClicked, Qt::QueuedConnection);
-
   action = new QAction(tr("gbXML"), this);
   importMenu->addAction(action);
   connect(action, &QAction::triggered, this, &MainMenu::importgbXMLClicked, Qt::QueuedConnection);
