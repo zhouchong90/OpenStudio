@@ -42,7 +42,7 @@ namespace model {
 namespace bimserver {
 
   /// This provides utilities to connect to BIMserver
-  class BIMserverConnection : public QObject
+  class BIMSERVER_API BIMserverConnection : public QObject
   {
     Q_OBJECT
 
