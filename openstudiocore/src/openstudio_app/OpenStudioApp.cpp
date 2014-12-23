@@ -513,7 +513,7 @@ void OpenStudioApp::importIFC()
 {
   QWidget * parent = nullptr;
 
-  bimserver::BIMserverConnection *m_bimserverConnector = new bimserver::BIMserverConnection(nullptr,"127.0.0.1:8082");
+  bimserver::BIMserverConnection *m_bimserverConnector = new bimserver::BIMserverConnection(nullptr,"localhost:8082/json");
   
   if( this->currentDocument() )
   {
