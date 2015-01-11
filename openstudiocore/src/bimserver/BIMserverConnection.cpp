@@ -154,7 +154,7 @@ namespace bimserver {
 
   void BIMserverConnection::sendGetSerializerRequest() {
     QJsonObject parameters;
-    parameters["serializerName"] = QJsonValue("OSM");
+    parameters["serializerName"] = QJsonValue("Osm");
     QJsonObject request;
     request["interface"] = QJsonValue("Bimsie1ServiceInterface");
     request["method"] = QJsonValue("getSerializerByName");
