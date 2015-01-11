@@ -107,6 +107,10 @@ class OpenStudioApp : public OSAppBase
 
   void importSDD(); 
 
+  void importIFC();
+
+  void processOSM(QString osmString);
+
   void open();
 
   void loadLibrary();

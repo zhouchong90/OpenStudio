@@ -38,8 +38,9 @@ namespace bimserver {
 
   BIMserverConnection::BIMserverConnection(QObject * parent, const char * bimserverUrl) :
     QObject(parent),
-    m_networkManager(new QNetworkAccessManager) {
-    m_bimserverURL = QString(bimserverUrl);
+    m_networkManager(new QNetworkAccessManager)  
+  {
+    m_bimserverURL = QUrl(QString(bimserverUrl));
   }
 
   BIMserverConnection::~BIMserverConnection() {
@@ -72,6 +73,7 @@ namespace bimserver {
     QByteArray jsonByteArray = doc.toJson();
 
     //setup network connection
+
     QNetworkRequest qNetworkRequest(m_bimserverURL);
     qNetworkRequest.setRawHeader("Content-Type", "application/json");
 
@@ -90,7 +92,6 @@ namespace bimserver {
     QJsonObject response = responseObj["response"].toObject();
     m_token = response["result"].toString();
 
-    //TODO Chong add find serializer and find project method
     sendGetAllProjectsRequest();
   }
 
@@ -137,22 +138,23 @@ namespace bimserver {
       int lastRevisionId = ifcProject["lastRevisionId"].toInt();
       QString projectName = ifcProject["name"].toString();
       
-      QString project = QString::number(lastRevisionId).append(";").append(projectName);
-      
+      QString project = QString::number(lastRevisionId).append(":").append(projectName);
+
       projectList.append(project);
     }
 
     emit listAllProjects(projectList);
   }
 
-  void BIMserverConnection::download(int projectID) {
-    m_roid = QString::number(projectID);
+  void BIMserverConnection::download(QString projectID) {
+    m_roid = projectID;
+
     sendGetSerializerRequest();
   }
 
   void BIMserverConnection::sendGetSerializerRequest() {
     QJsonObject parameters;
-    parameters["serializerName"] = QJsonValue("OSMSerializer");
+    parameters["serializerName"] = QJsonValue("OSM");
     QJsonObject request;
     request["interface"] = QJsonValue("Bimsie1ServiceInterface");
     request["method"] = QJsonValue("getSerializerByName");
@@ -272,8 +274,6 @@ namespace bimserver {
     QByteArray byteArray;
     byteArray.append(file);
     QString OSMFile = QByteArray::fromBase64(byteArray);
-
-    //TODO connect this signal to the GUI slots to call ReverseTranslator
 
     emit osmStringRetrieved(OSMFile);
 

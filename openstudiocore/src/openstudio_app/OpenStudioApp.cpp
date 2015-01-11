@@ -91,6 +91,9 @@
 
 #include "../gbxml/ReverseTranslator.hpp"
 #include "../sdd/ReverseTranslator.hpp"
+#include "../bimserver/ReverseTranslator.hpp"
+#include "../bimserver/BIMserverConnection.hpp"
+#include "../bimserver/ProjectImportation.hpp"
 
 #include <QAbstractButton>
 #include <QDesktopServices>
@@ -144,6 +147,7 @@ OpenStudioApp::OpenStudioApp( int & argc, char ** argv, const QSharedPointer<rul
     connect(m_startupMenu.get(), &StartupMenu::importClicked, this, &OpenStudioApp::importIdf);
     connect(m_startupMenu.get(), &StartupMenu::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
     connect(m_startupMenu.get(), &StartupMenu::importSDDClicked, this, &OpenStudioApp::importSDD);
+    connect(m_startupMenu.get(), &StartupMenu::importIFCClicked, this, &OpenStudioApp::importIFC);
     connect(m_startupMenu.get(), &StartupMenu::loadFileClicked, this, &OpenStudioApp::open);
     //connect(m_startupMenu.get(), &StartupMenu::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
     connect(m_startupMenu.get(), &StartupMenu::newClicked, this, &OpenStudioApp::newModel);
@@ -189,6 +193,7 @@ OpenStudioApp::OpenStudioApp( int & argc, char ** argv, const QSharedPointer<rul
       connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
       connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
       connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+      connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
       connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
       connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
       connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
@@ -287,6 +292,7 @@ bool OpenStudioApp::openFile(const QString& fileName, bool restoreTabs)
       connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
       connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
       connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+      connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
       connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
       connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
       connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
@@ -368,6 +374,7 @@ void OpenStudioApp::newFromTemplateSlot( NewFromTemplateEnum newFromTemplateEnum
   connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
   connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
   connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+  connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
   connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
   connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
   connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
@@ -450,6 +457,7 @@ void OpenStudioApp::importIdf()
         connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
         connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
         connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+        connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
         connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
         connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
         connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
@@ -499,6 +507,103 @@ void OpenStudioApp::importgbXML()
 void OpenStudioApp::importSDD()
 {
   import(SDD);
+}
+
+void OpenStudioApp::importIFC()
+{
+  QWidget * parent = nullptr;
+  if( this->currentDocument() )
+  {
+    parent = this->currentDocument()->mainWindow();
+  }
+
+  bimserver::BIMserverConnection *m_bimserverConnector = new bimserver::BIMserverConnection(parent, "http://localhost:8082/json");
+  bimserver::ProjectImportation *projectImportation = new bimserver::ProjectImportation(parent, m_bimserverConnector);
+  
+  connect(m_bimserverConnector, &bimserver::BIMserverConnection::osmStringRetrieved, this, &OpenStudioApp::processOSM);
+
+  projectImportation->show();
+}
+
+void OpenStudioApp::processOSM(QString osmString)
+{
+  std::vector<LogMessage> translatorErrors, translatorWarnings;
+  boost::optional<model::Model> model;
+  bimserver::ReverseTranslator trans;
+
+  model = trans.loadModel(osmString.toStdString());
+  translatorErrors = trans.errors();
+  translatorWarnings = trans.warnings();
+
+  if( model ) {
+      bool wasQuitOnLastWindowClosed = this->quitOnLastWindowClosed();
+      this->setQuitOnLastWindowClosed(false);
+
+      if( m_osDocument )
+      {
+        if( !closeDocument() ) { 
+          this->setQuitOnLastWindowClosed(wasQuitOnLastWindowClosed);
+          return;
+        }
+        processEvents();
+      }
+
+      m_osDocument = std::shared_ptr<OSDocument>( new OSDocument(componentLibrary(), 
+                                                                   hvacComponentLibrary(), 
+                                                                   resourcesPath(), 
+                                                                   *model) );
+      m_osDocument->markAsModified();
+      connect(m_osDocument.get(), &OSDocument::closeClicked, this, &OpenStudioApp::onCloseClicked);
+      connect(m_osDocument.get(), &OSDocument::exitClicked, this, &OpenStudioApp::quit);
+      connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
+      connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
+      connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+      connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
+      connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
+      connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
+      connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);
+      connect(m_osDocument.get(), &OSDocument::newClicked, this, &OpenStudioApp::newModel);
+      connect(m_osDocument.get(), &OSDocument::helpClicked, this, &OpenStudioApp::showHelp);
+      connect(m_osDocument.get(), &OSDocument::aboutClicked, this, &OpenStudioApp::showAbout);
+      m_startupView->hide();
+
+      bool errorsOrWarnings = false;
+
+      QString log;
+
+      for( const auto & error : translatorErrors )
+      {
+        errorsOrWarnings = true;
+
+        log.append(QString::fromStdString(error.logMessage()));
+        log.append("\n");
+        log.append("\n");
+      }
+
+      for( const auto & warning : translatorWarnings )
+      {
+        errorsOrWarnings = true;
+
+        log.append(QString::fromStdString(warning.logMessage()));
+        log.append("\n");
+        log.append("\n");
+      }
+
+      if (errorsOrWarnings){
+        QMessageBox messageBox; // (parent); ETH: ... but is hidden, so don't actually use
+        messageBox.setText("Errors or warnings occurred on IFC import.");
+        messageBox.setDetailedText(log);
+        messageBox.exec();
+      }
+
+      this->setQuitOnLastWindowClosed(wasQuitOnLastWindowClosed);
+
+    }else{
+      QMessageBox messageBox; // (parent); ETH: ... but is hidden, so don't actually use
+      messageBox.setText("Could not import IFC file.");
+      messageBox.exec();
+    }
+
 }
 
 void OpenStudioApp::import(OpenStudioApp::fileType type)
@@ -574,6 +679,7 @@ void OpenStudioApp::import(OpenStudioApp::fileType type)
       connect(m_osDocument.get(), &OSDocument::importClicked, this, &OpenStudioApp::importIdf);
       connect(m_osDocument.get(), &OSDocument::importgbXMLClicked, this, &OpenStudioApp::importgbXML);
       connect(m_osDocument.get(), &OSDocument::importSDDClicked, this, &OpenStudioApp::importSDD);
+      connect(m_osDocument.get(), &OSDocument::importIFCClicked, this, &OpenStudioApp::importIFC);
       connect(m_osDocument.get(), &OSDocument::loadFileClicked, this, &OpenStudioApp::open);
       connect(m_osDocument.get(), &OSDocument::osmDropped, this, &OpenStudioApp::openFromDrag);
       connect(m_osDocument.get(), &OSDocument::loadLibraryClicked, this, &OpenStudioApp::loadLibrary);

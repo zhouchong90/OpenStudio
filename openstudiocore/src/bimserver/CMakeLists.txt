@@ -9,6 +9,8 @@ set(${target_name}_src
   ReverseTranslator.cpp
   BIMserverConnection.hpp
   BIMserverConnection.cpp
+  ProjectImportation.hpp
+  ProjectImportation.cpp
 )
 
 set(${target_name}_test_src
@@ -29,7 +31,6 @@ set(${target_name}_depends
   openstudio_model
   openstudio_energyplus
   openstudio_osversion
-  zkexpat
 )
 
 add_library(${target_name} SHARED ${${target_name}_src})

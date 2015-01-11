@@ -42,7 +42,7 @@ namespace model {
 namespace bimserver {
 
   /// This provides utilities to connect to BIMserver
-  class BIMserverConnection : public QObject
+  class BIMSERVER_API BIMserverConnection : public QObject
   {
     Q_OBJECT
 
@@ -53,14 +53,14 @@ namespace bimserver {
 
     /// Virtual destructor
     ~BIMserverConnection();
+  
+  public slots:
 
     /// login with username and password
     void login(QString username, QString password);
-    
+
     /// download the osm model
-    void download(int projectID);
-  
-  public slots:
+    void download(QString projectID);
 
     /// log in to BIMserver
     void processLoginRequest(QNetworkReply *rep);

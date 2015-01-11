@@ -700,6 +700,7 @@ set(depends
   openstudio_analysisdriver
   openstudio_sdd
   openstudio_gbxml
+#  openstudio_bimserver
   ${QT_LIBS}
   #${RUBY_LIBRARY}
 )

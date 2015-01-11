@@ -90,8 +90,13 @@ set(depends
   openstudio_modeleditor
   openstudio_sdd
   openstudio_gbxml
+  openstudio_bimserver
+  openstudio_utilities
+  
   ${QT_LIBS}
   ${RUBY_LIBRARY}
+  ${Boost_LIBRARIES}
+  ${CMAKE_THREAD_LIBS}
 )
 
 target_link_libraries(${target_name} ${depends})
