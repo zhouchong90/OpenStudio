@@ -29,7 +29,6 @@
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QByteArray>
-#include <QMessageBox>
 
 #include <iostream>
 
@@ -74,13 +73,9 @@ namespace bimserver {
     QByteArray jsonByteArray = doc.toJson();
 
     //setup network connection
-    QMessageBox::information(nullptr, "BIMserver URL", m_bimserverURL.toString());
 
     QNetworkRequest qNetworkRequest(m_bimserverURL);
     qNetworkRequest.setRawHeader("Content-Type", "application/json");
-
-    QMessageBox::information(nullptr, "BIMserverConnection", "loginRequest Sent");
-    QMessageBox::information(nullptr, "BIMserverConnection", QString(jsonByteArray));
 
     // disconnect all signals from m_networkManager to this
     disconnect(m_networkManager, nullptr, this, nullptr);
@@ -91,17 +86,12 @@ namespace bimserver {
   void BIMserverConnection::processLoginRequest(QNetworkReply *rep) {
     //extract token from login Request
     QByteArray responseArray = rep->readAll();
-    QMessageBox::information(nullptr, "login response", QString(responseArray));
 
     QJsonDocument responseDoc = QJsonDocument::fromJson(responseArray);
     QJsonObject responseObj = responseDoc.object();
     QJsonObject response = responseObj["response"].toObject();
     m_token = response["result"].toString();
 
-    QMessageBox::information(nullptr, "BIMserverConnection", "loginRequest received");
-    QMessageBox::information(nullptr, "login token", m_token);
-
-    //TODO Chong add find serializer and find project method
     sendGetAllProjectsRequest();
   }
 
@@ -126,9 +116,6 @@ namespace bimserver {
     QNetworkRequest qNetworkRequest(m_bimserverURL);
     qNetworkRequest.setRawHeader("Content-Type", "application/json");
 
-    QMessageBox::information(nullptr, "BIMserverConnection", "get all projects send");
-
-
     // disconnect all signals from m_networkManager to this
     disconnect(m_networkManager, nullptr, this, nullptr);
     connect(m_networkManager, &QNetworkAccessManager::finished, this, &BIMserverConnection::processGetAllProjectsRequest);
@@ -144,8 +131,6 @@ namespace bimserver {
     QJsonObject response = responseObj["response"].toObject();
     QJsonArray result = response["result"].toArray();
 
-    QMessageBox::information(nullptr, "BIMserverConnection", "get all projects received");
-
     QStringList projectList;
 
     foreach(const QJsonValue & value, result) {
@@ -155,22 +140,21 @@ namespace bimserver {
       
       QString project = QString::number(lastRevisionId).append(":").append(projectName);
 
-      QMessageBox::information(nullptr, "project added", project.toStdString().c_str());
-
       projectList.append(project);
     }
 
     emit listAllProjects(projectList);
   }
 
-  void BIMserverConnection::download(int projectID) {
-    m_roid = QString::number(projectID);
+  void BIMserverConnection::download(QString projectID) {
+    m_roid = projectID;
+
     sendGetSerializerRequest();
   }
 
   void BIMserverConnection::sendGetSerializerRequest() {
     QJsonObject parameters;
-    parameters["serializerName"] = QJsonValue("OSMSerializer");
+    parameters["serializerName"] = QJsonValue("OSM");
     QJsonObject request;
     request["interface"] = QJsonValue("Bimsie1ServiceInterface");
     request["method"] = QJsonValue("getSerializerByName");
@@ -290,8 +274,6 @@ namespace bimserver {
     QByteArray byteArray;
     byteArray.append(file);
     QString OSMFile = QByteArray::fromBase64(byteArray);
-
-    //TODO connect this signal to the GUI slots to call ReverseTranslator
 
     emit osmStringRetrieved(OSMFile);
 

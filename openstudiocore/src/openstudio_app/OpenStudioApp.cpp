@@ -512,16 +512,16 @@ void OpenStudioApp::importSDD()
 void OpenStudioApp::importIFC()
 {
   QWidget * parent = nullptr;
-
-  bimserver::BIMserverConnection *m_bimserverConnector = new bimserver::BIMserverConnection(nullptr,"localhost:8082/json");
-  
   if( this->currentDocument() )
   {
     parent = this->currentDocument()->mainWindow();
   }
 
+  bimserver::BIMserverConnection *m_bimserverConnector = new bimserver::BIMserverConnection(parent, "http://localhost:8082/json");
   bimserver::ProjectImportation *projectImportation = new bimserver::ProjectImportation(parent, m_bimserverConnector);
-  connect(m_bimserverConnector,&bimserver::BIMserverConnection::osmStringRetrieved, this, &OpenStudioApp::processOSM);
+  
+  connect(m_bimserverConnector, &bimserver::BIMserverConnection::osmStringRetrieved, this, &OpenStudioApp::processOSM);
+
   projectImportation->show();
 }
 
