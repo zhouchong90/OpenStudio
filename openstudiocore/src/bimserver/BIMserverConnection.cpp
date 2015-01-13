@@ -98,7 +98,7 @@ namespace bimserver {
   void BIMserverConnection::sendGetAllProjectsRequest() {
     QJsonObject parameters;
     parameters["onlyTopLevel"] = QJsonValue(true);
-    parameters["onlyActive"] = QJsonValue(false);
+    parameters["onlyActive"] = QJsonValue(true);
     QJsonObject request;
     request["interface"] = QJsonValue("Bimsie1ServiceInterface");
     request["method"] = QJsonValue("getAllProjects");

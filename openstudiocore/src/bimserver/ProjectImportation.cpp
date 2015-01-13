@@ -34,9 +34,9 @@ namespace bimserver {
 		QString username("admin@bimserver.org");
 		QString password("admin");
 
-    connect(this, &ProjectImportation::startConnection, m_bimserverConnector, &BIMserverConnection::login);
-    connect(m_bimserverConnector, &BIMserverConnection::listAllProjects, this, &ProjectImportation::processProjectList);
-    connect(this, &ProjectImportation::projectIDSelected, m_bimserverConnector, &BIMserverConnection::download);
+		connect(this, &ProjectImportation::startConnection, m_bimserverConnector, &BIMserverConnection::login);
+		connect(m_bimserverConnector, &BIMserverConnection::listAllProjects, this, &ProjectImportation::processProjectList);
+		connect(this, &ProjectImportation::projectIDSelected, m_bimserverConnector, &BIMserverConnection::download);
 		
 		emit startConnection(username, password);
 	}
@@ -58,7 +58,9 @@ namespace bimserver {
 		// (bug fix) if nothing is selected. 
 
 		m_projectID = m_listWidget->currentItem()->text().section(":",0,0);
-
+		
+		QMessageBox::information(this, "Project Selected", m_projectID.append(" selected, please wait for it to be imported."));
+		
 		emit projectIDSelected(m_projectID); 
 	}
 

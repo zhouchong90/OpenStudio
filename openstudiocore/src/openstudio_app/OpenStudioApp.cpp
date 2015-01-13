@@ -527,6 +527,7 @@ void OpenStudioApp::importIFC()
 
 void OpenStudioApp::processOSM(QString osmString)
 {
+
   std::vector<LogMessage> translatorErrors, translatorWarnings;
   boost::optional<model::Model> model;
   bimserver::ReverseTranslator trans;
